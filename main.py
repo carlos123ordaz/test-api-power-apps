@@ -5,7 +5,6 @@ import logging
 
 app = FastAPI()
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -22,26 +21,18 @@ class Attachment(BaseModel):
 def saludar_post(data: Attachment):
     try:
         base64_str = data.fileBase64.strip()
-
-        # Remover el prefijo data:application/... si existe
         if "," in base64_str:
             base64_str = base64_str.split(",", 1)[1]
-
-        # Limpiar caracteres no-ASCII y espacios en blanco
         base64_str = base64_str.encode(
             'ascii', errors='ignore').decode('ascii')
         base64_str = base64_str.replace(
             '\n', '').replace('\r', '').replace(' ', '')
 
-        # Agregar padding si es necesario
         padding = len(base64_str) % 4
         if padding:
             base64_str += '=' * (4 - padding)
 
-        # Decodificar
         file_bytes = base64.b64decode(base64_str)
-
-        # Guardar archivo
         with open(data.fileName, "wb") as f:
             f.write(file_bytes)
 
