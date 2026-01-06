@@ -10,6 +10,7 @@ def root():
 
 @app.post("/saludar")
 def saludar_post():
+    print("Saludo recibido")
     return {
         "mensaje": f"Recibimos tu saludo",
     }
