@@ -23,7 +23,6 @@ class BatchAttachments(BaseModel):
 
 
 def decode_base64(base64_str: str) -> bytes:
-    """Decodificar base64 de forma robusta"""
     base64_str = base64_str.strip()
 
     if "," in base64_str:
@@ -40,13 +39,13 @@ def decode_base64(base64_str: str) -> bytes:
     return base64.b64decode(base64_str)
 
 
-@app.post("/saludar/batch")
+@app.post("/process/batch")
 def saludar_batch(data: BatchAttachments):
-    """Recibe múltiples archivos en un solo request"""
     results = []
     errors = []
 
-    logger.info(f"Procesando {len(data.attachments)} archivos")
+    email_info = f"De: {data.attachments[0].emailFrom}, Asunto: {data.attachments[0].subject}" if data.attachments else "Sin información"
+    logger.info(f"Procesando {len(data.attachments)} archivos | {email_info}")
 
     for i, attachment in enumerate(data.attachments):
         try:
@@ -62,7 +61,7 @@ def saludar_batch(data: BatchAttachments):
             })
 
             logger.info(
-                f"✓ Archivo {i+1}: {attachment.fileName} ({len(file_bytes)} bytes)")
+                f"✓ Archivo {i+1}: {attachment.fileName} ({len(file_bytes)} bytes) | De: {attachment.emailFrom} | Asunto: {attachment.subject}")
 
         except Exception as e:
             error_msg = f"Error procesando {attachment.fileName}: {str(e)}"
@@ -76,29 +75,3 @@ def saludar_batch(data: BatchAttachments):
         "totalProcesado": len(results),
         "totalErrores": len(errors)
     }
-
-
-# Endpoint para recibir un solo archivo (compatible con tu flujo anterior)
-@app.post("/saludar")
-def saludar_post(data: Attachment):
-    try:
-        file_bytes = decode_base64(data.fileBase64)
-
-        with open(data.fileName, "wb") as f:
-            f.write(file_bytes)
-
-        logger.info(
-            f"Archivo recibido: {data.fileName} ({len(file_bytes)} bytes)")
-
-        return {
-            "mensaje": "Archivo recibido correctamente",
-            "archivo": data.fileName,
-            "tamaño": len(file_bytes)
-        }
-
-    except Exception as e:
-        logger.error(f"Error procesando archivo: {str(e)}")
-        return {
-            "error": f"Error procesando archivo: {str(e)}",
-            "archivo": data.fileName
-        }, 400
