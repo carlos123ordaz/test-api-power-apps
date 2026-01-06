@@ -1,8 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 import base64
+import logging
 
 app = FastAPI()
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class Attachment(BaseModel):
@@ -15,16 +20,43 @@ class Attachment(BaseModel):
 
 @app.post("/saludar")
 def saludar_post(data: Attachment):
-    base64_str = data.fileBase64
-    if "," in base64_str:
-        base64_str = base64_str.split(",")[1]
+    try:
+        base64_str = data.fileBase64.strip()
 
-    file_bytes = base64.b64decode(base64_str)
+        # Remover el prefijo data:application/... si existe
+        if "," in base64_str:
+            base64_str = base64_str.split(",", 1)[1]
 
-    with open(data.fileName, "wb") as f:
-        f.write(file_bytes)
+        # Limpiar caracteres no-ASCII y espacios en blanco
+        base64_str = base64_str.encode(
+            'ascii', errors='ignore').decode('ascii')
+        base64_str = base64_str.replace(
+            '\n', '').replace('\r', '').replace(' ', '')
 
-    return {
-        "mensaje": "Archivo recibido correctamente",
-        "archivo": data.fileName
-    }
+        # Agregar padding si es necesario
+        padding = len(base64_str) % 4
+        if padding:
+            base64_str += '=' * (4 - padding)
+
+        # Decodificar
+        file_bytes = base64.b64decode(base64_str)
+
+        # Guardar archivo
+        with open(data.fileName, "wb") as f:
+            f.write(file_bytes)
+
+        logger.info(
+            f"Archivo recibido: {data.fileName} ({len(file_bytes)} bytes)")
+
+        return {
+            "mensaje": "Archivo recibido correctamente",
+            "archivo": data.fileName,
+            "tamaño": len(file_bytes)
+        }
+
+    except Exception as e:
+        logger.error(f"Error procesando archivo: {str(e)}")
+        return {
+            "error": f"Error procesando archivo: {str(e)}",
+            "archivo": data.fileName
+        }, 400
